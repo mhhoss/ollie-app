@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Ollie">
+  <title>Ollie</title>
+  <!-- status dot: warm amber. Pulses on opacity only; never scales. -->
+  <circle cx="256" cy="82" r="24" fill="#E9A33C"/>
+  <!-- body: soft arch. Full dome, straight sides, flat base with soft corners. -->
+  <path d="M76 310 A180 180 0 0 1 436 310 L436 422 A32 32 0 0 1 404 454 L108 454 A32 32 0 0 1 76 422 Z" fill="#1C5B60"/>
+  <!-- eyes: two low-set, widely spaced soft slots. No mouth, by design. -->
+  <rect x="138" y="323" width="82" height="50" rx="18" fill="#F6EFE2"/>
+  <rect x="292" y="323" width="82" height="50" rx="18" fill="#F6EFE2"/>
+</svg>
