@@ -1,0 +1,36 @@
+# Ollie — store configuration template.
+#
+# Copy this file to config.toml and fill in real values. config.toml is
+# gitignored — it holds the bot token and payment details for one real
+# deployed store and must never be committed.
+#
+#   cp config.example.toml config.toml
+
+[bot]
+# From @BotFather after creating the store's own bot.
+token = "REPLACE_WITH_BOTFATHER_TOKEN"
+# The store owner's numeric Telegram user id (not @username). The owner
+# workspace (/panel) is gated on this id — get it from @userinfobot.
+owner_telegram_id = 0
+
+[store]
+name = "REPLACE_WITH_STORE_NAME"
+# Digits only, no spaces — normalized at load time regardless.
+card_number = "6037997512345678"
+card_holder = "REPLACE_WITH_CARD_HOLDER_NAME"
+# Flat shipping cost in Toman, added to every physical order.
+shipping_cost = 0
+default_carrier = "پست پیشتاز"
+
+[order]
+# How long a customer has to send a receipt before the order expires
+# and its reserved stock/credentials are released.
+payment_window_hours = 24
+# After this many rejections on one order, flag it for the owner.
+reject_flag_threshold = 3
+
+[runtime]
+db_path = "data/ollie.db"
+# Leave empty unless the host can't reach api.telegram.org directly
+# (common for Iranian-hosted servers) — set to an outbound proxy URL.
+proxy_url = ""

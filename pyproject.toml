@@ -8,18 +8,21 @@ packages = ["src/ollie"]
 [project]
 name = "ollie"
 version = "0.1.0"
-description = "Telegram-native customer assistant for Iranian businesses (dataset foundation)"
+description = "Telegram storefront bot for fixed-catalog Iranian businesses"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
 authors = [
     { name = "Mahdi Hosseini", email = "m.hosseinizd@gmail.com" }
 ]
-dependencies = []
+dependencies = [
+    "aiogram>=3.15",
+]
 
 [dependency-groups]
 dev = [
     "pytest>=8.0",
+    "pytest-asyncio>=0.24",
     "ruff>=0.12",
     "mypy>=2.1",
 ]

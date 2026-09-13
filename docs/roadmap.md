@@ -326,6 +326,13 @@ One module, every Persian string, no exceptions.
 - `src/ollie/bot/sweeper.py` — 5-minute loop: expire `awaiting_receipt`
   past `expires_at`, release reservations, notify, and run
   `domain.validate` invariants, alerting the owner on any violation.
+  Also decide and implement the `rejected -> expired` policy added to
+  the FSM after the Phase 4 review (`ollie.domain.states`): how long a
+  rejected order waits before this fires (reuse
+  `payment_window_hours`, or a separate config value), and where the
+  clock starts reading from — most likely the `event_log` row for the
+  `receipt_submitted -> rejected` transition, rather than a new column
+  on `order`.
 
 **Checkpoint per handler group**
 - Each maps 1:1 to spec screens and pulls every visible string from

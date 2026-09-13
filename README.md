@@ -15,10 +15,13 @@ the current one).
 
 ## Status
 
-Pre-implementation. `docs/m1-spec.html` is the complete build
-specification for the first milestone — every customer and owner
-screen with final Persian copy, the order state machine, and the
-SQLite schema. `docs/roadmap.md` is the phased implementation plan
+Domain layer complete (`src/ollie/domain/`, `src/ollie/fmt/`,
+`src/ollie/config.py`) — the order state machine, business models,
+order codes, money arithmetic, Jalali dates, and config loading, all
+stdlib-only and unit-tested with no Telegram or database in the loop.
+Persistence (SQLite) and the bot itself (aiogram) haven't been built
+yet. `docs/m1-spec.html` is the complete build specification for the
+first milestone; `docs/roadmap.md` is the phased implementation plan
 this repo is being built against.
 
 This repo previously held the dataset foundation for a different,
@@ -32,7 +35,7 @@ if it's ever needed again; it isn't part of this product.
 uv sync --all-groups
 uv run pytest -q
 uv run ruff check .
-uv run mypy src
+uv run mypy src tests
 ```
 
 See `docs/roadmap.md` for the phase-by-phase build plan.
