@@ -4,6 +4,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ollie"]
+artifacts = ["src/ollie/db/schema.sql"]
 
 [project]
 name = "ollie"
