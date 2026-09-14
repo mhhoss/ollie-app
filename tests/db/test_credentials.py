@@ -43,11 +43,22 @@ def _reserved_credential_id(conn: sqlite3.Connection) -> int:
     return int(row["id"])
 
 
-def test_deliver_marks_delivered_only_after_send_succeeds(conn: sqlite3.Connection) -> None:
+async def _always_true() -> bool:
+    return True
+
+
+async def _always_false() -> bool:
+    return False
+
+
+@pytest.mark.asyncio
+async def test_deliver_marks_delivered_only_after_send_succeeds(conn: sqlite3.Connection) -> None:
     _make_order(conn)
     credential_id = _reserved_credential_id(conn)
 
-    delivered = credentials.deliver(conn, credential_id, delivered_at=NOW + 5, send=lambda: True)
+    delivered = await credentials.deliver(
+        conn, credential_id, delivered_at=NOW + 5, send=_always_true
+    )
 
     assert delivered.status == CredentialStatus.DELIVERED
     assert delivered.delivered_at == NOW + 5
@@ -55,7 +66,8 @@ def test_deliver_marks_delivered_only_after_send_succeeds(conn: sqlite3.Connecti
     assert row["status"] == "delivered"
 
 
-def test_failed_send_rolls_back_and_leaves_credential_reserved(
+@pytest.mark.asyncio
+async def test_failed_send_rolls_back_and_leaves_credential_reserved(
     conn: sqlite3.Connection,
 ) -> None:
     """The roadmap's third named checkpoint: a delivery callback that
@@ -63,7 +75,9 @@ def test_failed_send_rolls_back_and_leaves_credential_reserved(
     _make_order(conn)
     credential_id = _reserved_credential_id(conn)
 
-    result = credentials.deliver(conn, credential_id, delivered_at=NOW + 5, send=lambda: False)
+    result = await credentials.deliver(
+        conn, credential_id, delivered_at=NOW + 5, send=_always_false
+    )
 
     assert result.status == CredentialStatus.RESERVED
     row = conn.execute(
@@ -73,32 +87,35 @@ def test_failed_send_rolls_back_and_leaves_credential_reserved(
     assert row["delivered_at"] is None
 
 
-def test_send_raising_also_leaves_credential_reserved(conn: sqlite3.Connection) -> None:
+@pytest.mark.asyncio
+async def test_send_raising_also_leaves_credential_reserved(conn: sqlite3.Connection) -> None:
     _make_order(conn)
     credential_id = _reserved_credential_id(conn)
 
-    def boom() -> bool:
+    async def boom() -> bool:
         raise RuntimeError("telegram is down")
 
     with pytest.raises(RuntimeError):
-        credentials.deliver(conn, credential_id, delivered_at=NOW + 5, send=boom)
+        await credentials.deliver(conn, credential_id, delivered_at=NOW + 5, send=boom)
 
     row = conn.execute("SELECT status FROM credential WHERE id = ?", (credential_id,)).fetchone()
     assert row["status"] == "reserved"
 
 
-def test_deliver_twice_is_rejected(conn: sqlite3.Connection) -> None:
+@pytest.mark.asyncio
+async def test_deliver_twice_is_rejected(conn: sqlite3.Connection) -> None:
     _make_order(conn)
     credential_id = _reserved_credential_id(conn)
-    credentials.deliver(conn, credential_id, delivered_at=NOW + 5, send=lambda: True)
+    await credentials.deliver(conn, credential_id, delivered_at=NOW + 5, send=_always_true)
 
     with pytest.raises(ValueError, match="not reserved"):
-        credentials.deliver(conn, credential_id, delivered_at=NOW + 6, send=lambda: True)
+        await credentials.deliver(conn, credential_id, delivered_at=NOW + 6, send=_always_true)
 
 
-def test_deliver_unknown_id_raises_credential_not_found(conn: sqlite3.Connection) -> None:
+@pytest.mark.asyncio
+async def test_deliver_unknown_id_raises_credential_not_found(conn: sqlite3.Connection) -> None:
     with pytest.raises(CredentialNotFound):
-        credentials.deliver(conn, 9999, delivered_at=NOW, send=lambda: True)
+        await credentials.deliver(conn, 9999, delivered_at=NOW, send=_always_true)
 
 
 def test_get_resolves_order_code_for_reserved_credential(conn: sqlite3.Connection) -> None:

@@ -118,6 +118,11 @@ C2_CHOOSE_CATEGORY = "دسته‌بندی مورد نظر خود را انتخا
 C2_EMPTY_CATALOG = "در حال حاضر محصولی برای فروش موجود نیست."
 
 C3_PRODUCT_LIST_HEADER = "محصولات دسته <b>{category_name}</b>:"
+# Placeholder category name/label — docs/m1-spec.html's own schema has
+# no category-name table (see handlers/catalog.py's module docstring),
+# so there is currently nowhere to source a real one from.
+C3_ALL_PRODUCTS_LABEL = "محصولات"
+C2_CATEGORY_LABEL = "دسته #{category_id}"
 
 C4_AVAILABLE = "✅ موجود"
 C4_OUT_OF_STOCK = "⛔️ ناموجود"
@@ -236,6 +241,13 @@ O1_OUTCOME_REJECTED_SUFFIX = "❌ رد شد — {time}"
 
 O2_REASON_PROMPT = "دلیل رد سفارش <code>{order_code}</code> را انتخاب کنید:"
 O2_CUSTOM_REASON_PREFIX = "دلیل:"
+# Spec gives the *behavior* ("Prompts for text, 200 char cap") but not
+# this prompt's exact wording — authored here, same status as E8.
+O2_CUSTOM_REASON_PROMPT = "متن دلیل رد را بنویسید (حداکثر ۲۰۰ نویسه):"
+# Authored, same status as the two constants above: the spec names the
+# "flag the order for the owner" behavior at the reject_flag_threshold
+# (C14's "Repeat rejections" note) but gives no exact owner-facing text.
+O2_REPEAT_REJECTION_OWNER_ALERT = "⚠️ سفارش <code>{order_code}</code> {reject_count} بار رد شده است."
 
 O3_APPROVED_DIGITAL = "✅ سفارش <code>{order_code}</code> تأیید شد.\n\n{items_block}"
 O3_APPROVED_DIGITAL_ITEM_LINE = (
@@ -255,6 +267,18 @@ O4_PANEL_ROOT = (
     "📦 در حال آماده‌سازی: {preparing_count} سفارش\n"
     "🔑 موجودی رو به اتمام: {low_stock_count} محصول"
 )
+# The panel's four sub-views (all-orders, credential pool, support
+# inbox, backup) are read-and-act screens the spec names but doesn't
+# give exact copy for beyond O4's root — authored here in the same
+# voice, same status as E8 and O2_CUSTOM_REASON_PROMPT.
+O4_ALL_ORDERS_HEADER = "📦 <b>سفارش‌های اخیر</b>"
+O4_ALL_ORDERS_EMPTY = "هنوز سفارشی ثبت نشده است."
+O4_CREDENTIAL_POOL_LINE = (
+    "{product_name}: {available} موجود · {reserved} رزرو · {delivered} تحویل‌شده"
+)
+O4_CREDENTIAL_POOL_EMPTY = "محصول دیجیتالی برای نمایش وجود ندارد."
+O4_SUPPORT_PLACEHOLDER = "پیام‌های پشتیبانی از طریق دکمه پاسخ در همان گفتگو مدیریت می‌شوند."
+O4_BACKUP_SENT = "💾 فایل پشتیبان ارسال شد."
 
 O5_TRACKING_PROMPT = "کد رهگیری پستی سفارش <code>{order_code}</code> را وارد کنید:"
 O5_ERROR_INVALID_TRACKING = "کد رهگیری باید بین ۱۰ تا ۲۴ رقم باشد."

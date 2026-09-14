@@ -37,6 +37,16 @@ def get(conn: sqlite3.Connection, order_code: str) -> Order | None:
     return _compose_order(conn, row)
 
 
+def set_invoice_message_id(conn: sqlite3.Connection, order_code: str, message_id: int) -> None:
+    """Not a state transition (no event_log row, no FSM check) — just
+    recording which sent message is the C9 invoice, so it can be
+    unpinned/edited later (C12/C13). Known only after create() has
+    already sent that message, hence the separate call."""
+    conn.execute(
+        'UPDATE "order" SET invoice_message_id = ? WHERE code = ?', (message_id, order_code)
+    )
+
+
 def list_for_customer(conn: sqlite3.Connection, telegram_id: int) -> list[Order]:
     rows = conn.execute(
         'SELECT o.* FROM "order" o JOIN customer c ON c.id = o.customer_id '
@@ -44,6 +54,54 @@ def list_for_customer(conn: sqlite3.Connection, telegram_id: int) -> list[Order]
         (telegram_id,),
     ).fetchall()
     return [_compose_order(conn, row) for row in rows]
+
+
+def list_recent(conn: sqlite3.Connection, *, limit: int = 20) -> list[Order]:
+    """O4's "همه سفارش‌ها" panel view — the owner's own cross-customer
+    listing, as opposed to list_for_customer's single-customer one."""
+    rows = conn.execute(
+        'SELECT * FROM "order" ORDER BY created_at DESC LIMIT ?', (limit,)
+    ).fetchall()
+    return [_compose_order(conn, row) for row in rows]
+
+
+def count_by_state(conn: sqlite3.Connection, state: OrderState) -> int:
+    row = conn.execute(
+        'SELECT COUNT(*) AS n FROM "order" WHERE state = ?', (state.value,)
+    ).fetchone()
+    return int(row["n"])
+
+
+def list_awaiting_receipt_past_expiry(conn: sqlite3.Connection, now: int) -> list[Order]:
+    """Sweeper feed #1: unpaid orders whose 24h window has elapsed."""
+    rows = conn.execute(
+        'SELECT * FROM "order" WHERE state = ? AND expires_at IS NOT NULL AND expires_at <= ?',
+        (OrderState.AWAITING_RECEIPT.value, now),
+    ).fetchall()
+    return [_compose_order(conn, row) for row in rows]
+
+
+def list_rejected_past_retry_window(
+    conn: sqlite3.Connection, *, window_seconds: int, now: int
+) -> list[Order]:
+    """
+    Sweeper feed #2: rejected orders never resubmitted within
+    `window_seconds` of the rejection — the `(rejected -> expired)`
+    edge added post-M1-draft (`ollie.domain.states`). The clock reads
+    from `event_log`'s own `(receipt_submitted -> rejected)` row, per
+    that edge's own note, rather than a column on `order` — an order
+    can be rejected more than once, so the *latest* such row per order
+    is what actually starts this window.
+    """
+    rows = conn.execute(
+        "SELECT o.code AS code, MAX(e.at) AS rejected_at "
+        'FROM "order" o JOIN event_log e ON e.order_id = o.id '
+        "WHERE o.state = ? AND e.to_state = ? "
+        "GROUP BY o.id",
+        (OrderState.REJECTED.value, OrderState.REJECTED.value),
+    ).fetchall()
+    overdue_codes = [row["code"] for row in rows if now - row["rejected_at"] >= window_seconds]
+    return [order for code in overdue_codes if (order := get(conn, code)) is not None]
 
 
 def create(
@@ -145,6 +203,13 @@ def transition(
     row is ever written for a given transition, because only the call
     that wins the race reaches the INSERT before rolling back is even
     possible.
+
+    Landing on `cancelled` or `expired` releases every reservation this
+    order held (stock incremented back, credentials returned to
+    `available`) as part of the same transaction — the state table's
+    own "release reservations" guard on both of those edges, kept here
+    rather than left for each caller (a customer's C9 cancel, the
+    sweeper's two expiry paths) to remember independently.
     """
     conn.execute("BEGIN IMMEDIATE")
     try:
@@ -156,6 +221,8 @@ def transition(
         updated = current.with_state(to_state, **field_overrides)
 
         _update_order_row(conn, row["id"], updated)
+        if to_state in (OrderState.CANCELLED, OrderState.EXPIRED):
+            _release_reservations(conn, row["id"], updated.items)
         events.log_event(
             conn,
             row["id"],
@@ -198,6 +265,27 @@ def _reserve_credentials(conn: sqlite3.Connection, product_id: int, quantity: in
         )
     ids = [row["id"] for row in rows]
     conn.executemany("UPDATE credential SET status = 'reserved' WHERE id = ?", [(i,) for i in ids])
+
+
+def _release_reservations(
+    conn: sqlite3.Connection, order_id: int, items: Sequence[OrderItem]
+) -> None:
+    """The inverse of _reserve_stock/_reserve_credentials, called from
+    transition() when an order lands on cancelled or expired. Scoped to
+    this specific order_id, so releasing one order's credentials never
+    touches another order's reservations of the same product."""
+    for item in items:
+        if item.kind == ProductKind.PHYSICAL:
+            conn.execute(
+                "UPDATE variant SET reserved = reserved - ? WHERE id = ?",
+                (item.quantity, item.variant_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE credential SET status = 'available', order_id = NULL "
+                "WHERE order_id = ? AND product_id = ? AND status = 'reserved'",
+                (order_id, item.product_id),
+            )
 
 
 def _link_reserved_credentials_to_order(
